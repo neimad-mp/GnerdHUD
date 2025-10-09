@@ -1,0 +1,10 @@
+# data/AbsorbDB_Sample.csv
+# key;amount;schools
+Power Word: Shield;500;physical
+Mana Shield;600;physical
+Fire Ward;400;fire
+Frost Ward;400;frost
+Greater Fire Protection Potion;1950;fire
+Greater Frost Protection Potion;1950;frost
+Shadow Ward;700;shadow
+Ice Barrier;850;physical|frost
