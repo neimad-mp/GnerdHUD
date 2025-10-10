@@ -1,4 +1,4 @@
-# README.md
+
 # GnerdHUD
 
 A lightweight, modular, center-screen HUD for TurtleWoW 1.12 (Vanilla), inspired by DHUD/MetaHUD/IceHUD. Keeps your eyes on your character with player/target bars, cast/mirror bars, ToT, pet, druid mana overlay, absorb tracker with optional DB import, range buckets, and class helpers. Requires no dependencies; optionally benefits from SuperWoW.
