@@ -1,12 +1,14 @@
 ## Interface: 11200
 ## Title: GnerdHUD
-## Notes: Center-screen HUD (player/target bars, cast/mirror, ToT, Pet, DruidMana, Range, Absorb DB import+decrement, ComboPoints, SnD, Shards, CC, Threat-lite, Energy Ticker) for TurtleWoW 1.12 (+SuperWoW optional)
+## Notes: Center-screen HUD (player/target bars, cast/mirror, Threat-lite, Energy Ticker) for TurtleWoW 1.12 (+SuperWoW optional)
 ## Author: Gnerd
-## Version: 0.4.1
+## Version: 0.4.4
 ## SavedVariables: GnerdHUDDB
 
+compat.lua
 locales\enUS.lua
-core.lua
+Core.lua
+hardening.lua
 
 modules\ToT.lua
 modules\Pet.lua
@@ -23,6 +25,7 @@ modules\CrowdControl.lua
 modules\ThreatLite.lua
 modules\EnergyTicker.lua
 modules\Options.lua
+modules\OptionsBridge.lua
 
 README.md
 CHANGELOG.md
