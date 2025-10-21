@@ -1,50 +1,57 @@
-
 # GnerdHUD
 
-A lightweight, modular, center-screen HUD for TurtleWoW 1.12 (Vanilla), inspired by DHUD/MetaHUD/IceHUD. Keeps your eyes on your character with player/target bars, cast/mirror bars, ToT, pet, druid mana overlay, absorb tracker with optional DB import, range buckets, and class helpers. Requires no dependencies; optionally benefits from SuperWoW.
+A lightweight, modular, center-screen HUD for TurtleWoW 1.12 (Vanilla), inspired by DHUD/MetaHUD/IceHUD. Keeps your eyes on your character with compact bars and zero external dependencies. SuperWoW is optional and auto-detected.
+
+This README reflects the 0.5.x “Ice layout” work: segmented arc bars that mirror IceHUD’s look and feel while remaining 1.12-legal.
 
 ## Requirements
 - TurtleWoW 1.12 client.
-- Optional: SuperWoW (feature-probed) to enable file import (ExportFile/ImportFile) and raw combat log hooks.
+- Optional: SuperWoW (feature-probed) to enable file import (ExportFile/ImportFile) and raw combat log hooks used by some advanced modules.
 
 ## Installation
 - Folder name must be `GnerdHUD`. Zip root equals this folder.
 - Copy to `Interface\AddOns\GnerdHUD`.
 
-## Usage
-- `/ghud` or `/gnerdhud` for help.
-- `/ghud vis on|off`  
-- `/ghud diag` | `/ghud test` | `/ghud rebuild`  
-- `/ghud options` opens a simple options panel (lock, alphas, texture, module toggles).
-- Drag frames while unlocked (`/ghud unlock`), then `/ghud lock`.
+## Usage (slash)
+- `/ghud` or `/gnerdhud` shows help.
+- `/ghud options` opens/closes the Options panel.
+- `/ghud lock` | `/ghud unlock` toggles movers (drag while unlocked).
+- `/ghud center` centers both HUD movers (safety rope if you drag off-screen).
+- `/ghud diag` prints current schema/version, positions, alpha set, and toggles.
+- `/ghud test` shows a short demo fill for smoke checks.
+- `/ghud flash` forces full alpha briefly (useful when tuning alphas).
 
-## Reporting Issues
-- Include runtime errors via **!GnerdBugCatcher** (`/gbc show N` or attach `imports\GBC_ErrorLog_*.txt`) and steps to reproduce.
+## Current feature set (0.5.x “Ice layout”, Milestone 0)
+- Segmented arc renderer (default 64 segments) that draws:
+  - Left HUD: Player Health (green→yellow→red gradient by %HP) and Power (Mana/Rage/Energy color mapping) arcs.
+  - Right HUD: Target Health and Power arcs (optional; see Options).
+- Pixel-perfect movers:
+  - Drag from screen center offsets (no grid/snap).
+  - Drag math is scale-invariant; movers visually resize with the scale so placement “feels” right at any size.
+  - Positions and options persist across reloads/logins.
+  - `/ghud center` safely recenters both movers.
+- Visibility & alpha rules:
+  - Out of combat + no target (full HP)
+  - Out of combat + no target (missing HP)
+  - Has target
+  - In combat
+- Options panel (ESC and [X] close; draggable):
+  - Locked checkbox (enables/disables dragging).
+  - Scale slider (0.5–1.5).
+  - Four alpha sliders (states above).
+  - “Show Target HUD” toggle.
+  - “Center Both” convenience button.
 
-## Modules (v0.4.4)
-- AbsorbDB: Bridge for importing absorb effect definitions and wiring them to GH.Absorb.effects.
-- Core bars: player/target health & power.
-- Castbar: Player cast/channel bar with optional lag indicator. (lag overlay).
-- ToT: target of target.
-- Pet: Pet health/power bars.
-- DruidMana: overlay (forms).
-- Absorb tracker: (shows lowest absorb across schools); import DB via `/ghud absorb import data/AbsorbDB_Sample.csv`.
-- Mirror: Breath/Exhaustion/Feign Death timers.
-- Range: Lightweight target range indicator using CheckInteractDistance buckets (no polling timers, event-driven). Range buckets (≤10y/≤28y/>28y).
-- ComboPoints: Rogue/Druid (cat) combo points display (0-5).
-- SnD: Slice and Dice timer (Rogue).
-- Shards: Warlock Soul Shard counter (bag scan, throttled on BAG_UPDATE).
-- Crowd Control: Simple CC presence indicators on target (minimal placeholder from v0.4.1).
-- ThreatLite: Minimal threat hint that shows "AGGRO" when target's target is you (or your pet).
-- EnergyTicker: Rogue/Druid (cat): 2s tick countdown, resets on observed energy gain.
-- Options: Small Options frame, not fully functional yet.
+## Legacy modules (from 0.4.x)
+The 0.4.x straight-bar modules remain in the codebase but are not the focus of the 0.5.x Ice layout milestone. As we progress through Milestone 1+, cast/mirror bars, Energy Tick, Combo Points, ToT/Pet, etc., will be re-introduced with Ice-style visuals.
 
-## SuperWoW Extras
-- If SuperWoW is present, Absorb decrementer uses raw combat log text to reduce absorb pools on “absorbed” hits (heuristic by school keywords).
+## Reporting issues
+- Please include steps to reproduce and any runtime errors via **!GnerdBugCatcher**.
+  - `/gbc show 10` or attach `Interface\AddOns\!GnerdBugCatcher\imports\GBC_ErrorLog_*.txt`.
 
-## Notes (0.4.4)
-- `compat.lua` must appear before `Core.lua` in the `.toc`.
-- `hardening.lua` adds safe handler wrappers and auto-applies vanilla-safe drag handlers to HUD bars after login.
+## Notes for Vanilla (1.12) environment
+- Handlers use Vanilla semantics (`this`, `event`, `arg1..n`), no `self,event` parameters.
+- Movers are not clamped to screen (clamping on 1.12 can cause scale-dependent jumps). Use `/ghud center` if needed.
 
 ## Localization
 - Baseline `locales/enUS.lua`. Contributions welcome.

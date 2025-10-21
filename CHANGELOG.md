@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.5.0 (Ice layout – Milestone 0)
+- New: Segmented arc renderer that replicates IceHUD-style curved bars in a 1.12-legal way (no texture masking/rotation). Default 64 segments per arc.
+- New: Player (left) and Target (right) arc HUDs.
+  - Player Health uses a smooth green→yellow→red gradient by current %HP.
+  - Player/Target Power colors map to Mana/Rage/Energy (and similar types) automatically.
+  - Right (target) HUD can be shown/hidden via Options and updates immediately on toggle.
+- UX: Scale-invariant dragging with visually scaled movers.
+  - Movers themselves stay at scale 1.0 for perfect drag math; inner content scales.
+  - Mover frames resize to match the selected scale so placement feels natural.
+  - Positions are stored as center offsets in parent space to avoid snapping at any scale.
+  - `/ghud center` button/command to safely recenter both movers.
+- Options: Rebuilt panel (draggable; ESC and [X] to close) with:
+  - Locked checkbox, Scale slider (0.5–1.5).
+  - Alpha sliders for four states: OOC+NoTarget(Full HP), OOC+NoTarget(Missing HP), Has Target, In Combat.
+  - “Show Target HUD” toggle.
+  - “Center Both” convenience button.
+- Persistence: Settings (scale, alphas, toggles, positions) now persist reliably across reloads/logins.
+- Slash: `/ghud options|opt|o`, `/ghud lock|unlock`, `/ghud center`, `/ghud diag`, `/ghud test`, `/ghud flash`.
+- Stability fixes:
+  - Replaced calls to non-Vanilla `:IsMoving()` with an internal `_dragging` flag.
+  - Removed screen clamping on movers (prevents scale-dependent snapping on 1.12).
+  - Corrected right-HUD show/hide to update immediately on toggle.
+  - Fixed options panel not reopening/closing consistently in earlier builds.
+- Schema: Bumped internal DB schema to v6 with sane defaults and migration from prior 0.4.x keys (existing positions preserved).
+- Known scope: This is Milestone 0 of the Ice layout. Cast/Mirror bars, Energy Tick, Combo Points, ToT/Pet, etc., will land in Milestone 1 with matching arc/skin styling.
+
 ## v0.4.5
 - Core UX: Promoted the temporary Options bridge into a stable `/ghud` router (`modules/Slash.lua`). It cooperates with the original handler and guarantees that `options|opt|o` opens the panel.
 - Options: Added “Reset Positions” (calls Core’s `ResetPositions()` when available) and “Reload UI” buttons.
