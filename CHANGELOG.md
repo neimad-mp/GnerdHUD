@@ -1,6 +1,12 @@
 # Changelog
 
+## v0.4.5
+- Core UX: Promoted the temporary Options bridge into a stable `/ghud` router (`modules/Slash.lua`). It cooperates with the original handler and guarantees that `options|opt|o` opens the panel.
+- Options: Added “Reset Positions” (calls Core’s `ResetPositions()` when available) and “Reload UI” buttons.
+- Note: `hardening.lua` remains in place; we’ll make a deeper internal sweep later and can remove hardening once all modules are explicitly Vanilla-safe.
+
 ## v0.4.4
+- Hardening and compat improvements; guaranteed `/ghud options` via bridge; fixed Lua first-line issues.
 - Hardening: Added `hardening.lua` with safe script wrappers (`GnerdHUD_SafeSetScript`, `GnerdHUD_MakeDraggable`) and a post-login pass that applies vanilla-safe drag handlers to known HUD bars. Also validates module registry and provides a harmless fallback for `GetPlayerBuffName` if compat didn't load.
 - Stability: Kept `modules/OptionsBridge.lua` to route `/ghud options` reliably across core variants.
 - Packaging: `.toc` now loads `hardening.lua` after `Core.lua`. Version bumped to 0.4.4.
