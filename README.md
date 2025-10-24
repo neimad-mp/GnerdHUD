@@ -11,14 +11,14 @@ This README reflects the 0.5.x work: (segmented arcs); 0.5.5 adds Center Cast & 
 
 
 ## Installation
-1. [Download GnerdHUD](https://github.com/neimad-mp/GnerdHUD/archive/refs/heads/main.zip)
-2. Rename folder to `GnerdHUD`.
+1. [Download here.](https://github.com/neimad-mp/GnerdHUD/archive/refs/heads/main.zip)
+2. Rename the extracted folder to `GnerdHUD`.
 3. Copy to `WoW-Directory\Interface\AddOns\`.
 4. Restart WoW.
 
 or
 
-Install via TurtleWoW's launcher via https://github.com/neimad-mp/GnerdHUD.git
+Install with TurtleWoW's launcher `https://github.com/neimad-mp/GnerdHUD.git`
 
 ## Usage (slash)
 - `/ghud` or `/gnerdhud` shows help.
@@ -60,7 +60,7 @@ Options panel
 
 ## Reporting issues
 - Please include steps to reproduce and any runtime errors via **!GnerdBugCatcher**.
-  - `/gbc show 10` or attach `Interface\AddOns\!GnerdBugCatcher\imports\GBC_ErrorLog_*.txt`.
+  - `/gbc show` or attach `TurtleWoW\Imports\GBC_ErrorLog_*.txt` if using SuperWoW.
 
 ## Localization
 - Baseline `enUS.lua`. Contributions welcome.
