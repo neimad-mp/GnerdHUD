@@ -1,13 +1,21 @@
-## GnerdHUD.toc
 ## Interface: 11200
 ## Title: GnerdHUD
-## Notes: IceHUD-style arcs for Vanilla (1.12). Player + Target HUD with center cast/mirror bars.
-## Author: Gnerd
-## Version: 0.5.5
+## Notes: Center-screen HUD for TurtleWoW 1.12
+## Author: neimad-mp & Gnerd
+## Version: 0.5.5-m1e
 ## SavedVariables: GnerdHUDDB
+## X-Localizations: enUS
 
+# Localization first
+locales/enUS.lua
+
+# Core and layout
 Core.lua
 ArcRenderer.lua
 Layout.lua
+
+# Center bars (cast & mirror)
 CastMirror.lua
+
+# Options UI (scrollable panel, per-bar alphas/scales)
 Options.lua
