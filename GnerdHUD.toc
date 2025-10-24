@@ -1,12 +1,13 @@
 ## GnerdHUD.toc
 ## Interface: 11200
 ## Title: GnerdHUD
-## Notes: IceHUD-style arcs for Vanilla (1.12). Player + Target HUD.
+## Notes: IceHUD-style arcs for Vanilla (1.12). Player + Target HUD with center cast/mirror bars.
 ## Author: Gnerd
-## Version: 0.5.0-ice
+## Version: 0.5.5
 ## SavedVariables: GnerdHUDDB
 
 Core.lua
 ArcRenderer.lua
 Layout.lua
+CastMirror.lua
 Options.lua

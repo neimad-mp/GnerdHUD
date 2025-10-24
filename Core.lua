@@ -19,16 +19,16 @@ end
 local ROOT = CreateFrame("Frame", "GnerdHUD_Root", UIParent)
 ROOT:Hide()
 
--- Defaults
 local DEFAULTS = {
-  schema = 6,
+  schema = 11,
   profile = {
-    locked = true,
-    scale = 1.00,
     segments = 64,
-    left  = { x = -230, y = -100 },
-    right = { x =  230, y = -100 },
+    scale    = 1.0,
+    locked   = true,
     rightEnabled = true,
+    left  = { x = 0, y = 0 },
+    right = { x = 0, y = 0 },
+    center = { x = 0, y = -32 },
     alpha = {
       ooc_full = 0.00,
       ooc_hurt = 0.25,
@@ -39,13 +39,16 @@ local DEFAULTS = {
       health = { r = 0.15, g = 0.95, b = 0.25, a = 1.0 },
       power  = { r = 0.25, g = 0.65, b = 1.00, a = 1.0 },
     },
+    castBar   = { enabled = true,  scale = 1.00, alpha = 1.00 },
+    mirrorBar = { enabled = true,  scale = 1.00, alpha = 1.00 },
+    castAlpha =   { ooc_full = 0.00, ooc_hurt = 0.25, target = 0.60, combat = 1.00 },
+    mirrorAlpha = { ooc_full = 0.00, ooc_hurt = 0.25, target = 0.60, combat = 1.00 },
   },
 }
 
 local function clamp01(x) x = tonumber(x) or 0; if x < 0 then return 0 elseif x > 1 then return 1 else return x end end
 local function printf(msg) if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage((Lf("PRINT_PREFIX","GnerdHUD: ")) .. (msg or "")) end end
 
--- Merge only missing keys from src into dst (in-place, preserve identity)
 local function mergeDefaults(dst, src)
   if type(dst) ~= "table" then return end
   for k, v in pairs(src) do
@@ -58,16 +61,13 @@ local function mergeDefaults(dst, src)
   end
 end
 
--- Strict normalizer: no resets of existing values, only clamping + filling holes.
 local function normalizeDB(db)
   if type(db) ~= "table" then db = {} end
   if type(db.profile) ~= "table" then db.profile = {} end
-
   mergeDefaults(db, DEFAULTS)
 
   local p = db.profile
 
-  -- primitive clamps
   local s = tonumber(p.scale) or DEFAULTS.profile.scale
   if s < 0.5 then s = 0.5 elseif s > 1.5 then s = 1.5 end
   p.scale = s
@@ -78,10 +78,10 @@ local function normalizeDB(db)
 
   if type(p.left)  ~= "table" then p.left  = { x = 0, y = 0 } end
   if type(p.right) ~= "table" then p.right = { x = 0, y = 0 } end
-  p.left.x  = tonumber(p.left.x)  or 0
-  p.left.y  = tonumber(p.left.y)  or 0
-  p.right.x = tonumber(p.right.x) or 0
-  p.right.y = tonumber(p.right.y) or 0
+  if type(p.center) ~= "table" then p.center = { x = 0, y = -32 } end
+  p.left.x,   p.left.y   = tonumber(p.left.x)   or 0,    tonumber(p.left.y)   or 0
+  p.right.x,  p.right.y  = tonumber(p.right.x)  or 0,    tonumber(p.right.y)  or 0
+  p.center.x, p.center.y = tonumber(p.center.x) or 0,    tonumber(p.center.y) or -32
 
   if type(p.alpha) ~= "table" then p.alpha = {} end
   p.alpha.ooc_full = clamp01(p.alpha.ooc_full ~= nil and p.alpha.ooc_full or DEFAULTS.profile.alpha.ooc_full)
@@ -103,25 +103,54 @@ local function normalizeDB(db)
   cp.b = clamp01(cp.b ~= nil and cp.b or DEFAULTS.profile.colors.power.b)
   cp.a = clamp01(cp.a ~= nil and cp.a or DEFAULTS.profile.colors.power.a)
 
-  db.schema = 6
+  if type(p.castBar) ~= "table" then p.castBar = {} end
+  if type(p.mirrorBar) ~= "table" then p.mirrorBar = {} end
+  p.castBar.enabled   = (p.castBar.enabled ~= false)
+  p.mirrorBar.enabled = (p.mirrorBar.enabled ~= false)
+  local function clampScale(x) x=tonumber(x) or 1.0; if x<0.5 then return 0.5 elseif x>1.5 then return 1.5 else return x end end
+  p.castBar.scale   = clampScale(p.castBar.scale)
+  p.mirrorBar.scale = clampScale(p.mirrorBar.scale)
+  p.castBar.alpha   = clamp01(p.castBar.alpha ~= nil and p.castBar.alpha or 1.0)
+  p.mirrorBar.alpha = clamp01(p.mirrorBar.alpha ~= nil and p.mirrorBar.alpha or 1.0)
+
+  if type(p.castAlpha) ~= "table" then p.castAlpha = {} end
+  if type(p.mirrorAlpha) ~= "table" then p.mirrorAlpha = {} end
+  local function fillAlphaSet(t, def)
+    t.ooc_full = clamp01(t.ooc_full ~= nil and t.ooc_full or def.ooc_full)
+    t.ooc_hurt = clamp01(t.ooc_hurt ~= nil and t.ooc_hurt or def.ooc_hurt)
+    t.target   = clamp01(t.target   ~= nil and t.target   or def.target)
+    t.combat   = clamp01(t.combat   ~= nil and t.combat   or def.combat)
+  end
+  fillAlphaSet(p.castAlpha, DEFAULTS.profile.castAlpha)
+  fillAlphaSet(p.mirrorAlpha, DEFAULTS.profile.mirrorAlpha)
+
+  db.schema = 11
   return db
 end
 
--- Stubs expected by Layout/Options; guarded no-ops
-GnerdHUD.ApplyAll                   = GnerdHUD.ApplyAll                   or function() end
-GnerdHUD.LayoutCreate               = GnerdHUD.LayoutCreate               or function() end
-GnerdHUD.LayoutDestroy              = GnerdHUD.LayoutDestroy              or function() end
-GnerdHUD.LayoutSetLocked            = GnerdHUD.LayoutSetLocked            or function(_) end
-GnerdHUD.LayoutSetScale             = GnerdHUD.LayoutSetScale             or function(_) end
-GnerdHUD.LayoutSetPositions         = GnerdHUD.LayoutSetPositions         or function(_, _) end
-GnerdHUD.LayoutSetRightEnabled      = GnerdHUD.LayoutSetRightEnabled      or function(_) end
-GnerdHUD.LayoutUpdateAlpha          = GnerdHUD.LayoutUpdateAlpha          or function() end
-GnerdHUD.LayoutUpdatePlayer         = GnerdHUD.LayoutUpdatePlayer         or function() end
-GnerdHUD.LayoutUpdatePlayerColors   = GnerdHUD.LayoutUpdatePlayerColors   or function() end
-GnerdHUD.LayoutUpdateTarget         = GnerdHUD.LayoutUpdateTarget         or function() end
-GnerdHUD.LayoutUpdateTargetColors   = GnerdHUD.LayoutUpdateTargetColors   or function() end
+GnerdHUD.ApplyAll                 = GnerdHUD.ApplyAll                 or function() end
+GnerdHUD.LayoutCreate             = GnerdHUD.LayoutCreate             or function() end
+GnerdHUD.LayoutDestroy            = GnerdHUD.LayoutDestroy            or function() end
+GnerdHUD.LayoutSetLocked          = GnerdHUD.LayoutSetLocked          or function(_) end
+GnerdHUD.LayoutSetScale           = GnerdHUD.LayoutSetScale           or function(_) end
+GnerdHUD.LayoutSetPositions       = GnerdHUD.LayoutSetPositions       or function(_, _) end
+GnerdHUD.LayoutSetRightEnabled    = GnerdHUD.LayoutSetRightEnabled    or function(_) end
+GnerdHUD.LayoutUpdateAlpha        = GnerdHUD.LayoutUpdateAlpha        or function() end
+GnerdHUD.LayoutUpdatePlayer       = GnerdHUD.LayoutUpdatePlayer       or function() end
+GnerdHUD.LayoutUpdatePlayerColors = GnerdHUD.LayoutUpdatePlayerColors or function() end
+GnerdHUD.LayoutUpdateTarget       = GnerdHUD.LayoutUpdateTarget       or function() end
+GnerdHUD.LayoutUpdateTargetColors = GnerdHUD.LayoutUpdateTargetColors or function() end
 
--- Slash
+GnerdHUD.Cast_Init            = GnerdHUD.Cast_Init            or function() end
+GnerdHUD.Cast_Destroy         = GnerdHUD.Cast_Destroy         or function() end
+GnerdHUD.Cast_OnEvent         = GnerdHUD.Cast_OnEvent         or function() end
+GnerdHUD.Cast_UpdateAlpha     = GnerdHUD.Cast_UpdateAlpha     or function() end
+GnerdHUD.Cast_SetLocked       = GnerdHUD.Cast_SetLocked       or function(_) end
+GnerdHUD.Cast_SetPosition     = GnerdHUD.Cast_SetPosition     or function(_,_) end
+GnerdHUD.Cast_SetLocalScales  = GnerdHUD.Cast_SetLocalScales  or function(_,_) end
+GnerdHUD.Cast_SetLocalAlphas  = GnerdHUD.Cast_SetLocalAlphas  or function(_,_) end
+GnerdHUD.Cast_SetEnabled      = GnerdHUD.Cast_SetEnabled      or function(_,_) end
+
 SLASH_GNERDHUD1 = "/ghud"
 SlashCmdList["GNERDHUD"] = function(msg)
   local cmd = sl(msg or "")
@@ -133,64 +162,47 @@ SlashCmdList["GNERDHUD"] = function(msg)
     printf(Lf("CMD_HELP_4", "/ghud unlock - Unlock frames"))
     printf(Lf("CMD_HELP_5", "/ghud diag - Print state"))
     printf(Lf("CMD_HELP_6", "/ghud rebuild - Recreate layout"))
-    printf("/ghud reset - Reset settings to defaults")
-    printf("/ghud center - Center both movers")
-    printf("/ghud ttest - Target demo (6s)")
-    printf("/ghud test - Player demo (6s)")
-    printf("/ghud show - Force 100%% (5s)")
-    printf("/ghud dbg - Toggle red debug square")
-    printf("/ghud flash - Force alpha=1 for 5s")
+    printf("/ghud center - Center arcs and cast/mirror")
     return
   elseif cmd == "options" then
-    if _G.GnerdHUD_Options then
-      if GnerdHUD_Options:IsShown() then GnerdHUD_Options:Hide() else GnerdHUD_Options:Show(); if GnerdHUD_Options.Raise then GnerdHUD_Options:Raise() end end
-    else
-      printf("Options UI not loaded (Options.lua).")
-    end
+    if GnerdHUD_ShowOptions then GnerdHUD_ShowOptions() end
     return
   elseif cmd == "lock" then
-    GnerdHUDDB.profile.locked = true; GnerdHUD.LayoutSetLocked(true); GnerdHUD.LayoutUpdateAlpha(); printf(Lf("STATE_LOCKED","Locked")); return
+    GnerdHUDDB.profile.locked = true
+    GnerdHUD.LayoutSetLocked(true)
+    GnerdHUD.LayoutUpdateAlpha()
+    printf(Lf("STATE_LOCKED","Locked"))
+    return
   elseif cmd == "unlock" then
-    GnerdHUDDB.profile.locked = false; GnerdHUD.LayoutSetLocked(false); GnerdHUD.LayoutUpdateAlpha(); printf(Lf("STATE_UNLOCKED","Unlocked")); return
+    GnerdHUDDB.profile.locked = false
+    GnerdHUD.LayoutSetLocked(false)
+    GnerdHUD.LayoutUpdateAlpha()
+    printf(Lf("STATE_UNLOCKED","Unlocked"))
+    return
   elseif cmd == "center" then
-    GnerdHUDDB.profile.left.x,  GnerdHUDDB.profile.left.y  = 0, 0
-    GnerdHUDDB.profile.right.x, GnerdHUDDB.profile.right.y = 0, 0
+    GnerdHUDDB.profile.left.x,   GnerdHUDDB.profile.left.y   = 0, 0
+    GnerdHUDDB.profile.right.x,  GnerdHUDDB.profile.right.y  = 0, 0
+    GnerdHUDDB.profile.center.x, GnerdHUDDB.profile.center.y = 0, -32
     GnerdHUD.LayoutSetPositions(GnerdHUDDB.profile.left, GnerdHUDDB.profile.right)
-    printf("Centered both movers."); return
+    GnerdHUD.Cast_SetPosition(GnerdHUDDB.profile.center.x, GnerdHUDDB.profile.center.y)
+    printf("Centered arcs and cast/mirror.")
+    return
   elseif cmd == "rebuild" then
-    GnerdHUD.LayoutDestroy(); GnerdHUD.LayoutCreate(); GnerdHUD.ApplyAll(true); printf(Lf("STATE_REBUILT","Layout rebuilt.")); return
+    GnerdHUD.LayoutDestroy(); GnerdHUD.LayoutCreate(); GnerdHUD.ApplyAll(true); printf(Lf("STATE_REBUILT","Layout rebuilt."))
+    return
   elseif cmd == "reset" then
     GnerdHUDDB = {}; normalizeDB(GnerdHUDDB); GnerdHUD.env.db = GnerdHUDDB
-    GnerdHUD.LayoutDestroy(); GnerdHUD.LayoutCreate(); GnerdHUD.ApplyAll(true); printf("Settings reset."); return
+    GnerdHUD.LayoutDestroy(); GnerdHUD.LayoutCreate(); GnerdHUD.ApplyAll(true); printf("Settings reset.")
+    return
   elseif cmd == "diag" then
     local p = GnerdHUDDB.profile
     printf(string.format("Schema=%s Segments=%d Scale=%.2f Locked=%s", tostring(GnerdHUDDB.schema or "?"), tonumber(p.segments or 0), tonumber(p.scale or 1), tostring(p.locked)))
-    printf(string.format("LeftHUD x=%.2f y=%.2f  RightHUD x=%.2f y=%.2f", tonumber(p.left.x or 0), tonumber(p.left.y or 0), tonumber(p.right.x or 0), tonumber(p.right.y or 0)))
+    printf(string.format("Left x=%.2f y=%.2f  Right x=%.2f y=%.2f  Center x=%.2f y=%.2f", tonumber(p.left.x or 0), tonumber(p.left.y or 0), tonumber(p.right.x or 0), tonumber(p.right.y or 0), tonumber(p.center.x or 0), tonumber(p.center.y or 0)))
     printf(string.format("Right enabled=%s", tostring(p.rightEnabled)))
     printf(string.format("Alpha ooc_full=%.2f ooc_hurt=%.2f target=%.2f combat=%.2f", p.alpha.ooc_full, p.alpha.ooc_hurt, p.alpha.target, p.alpha.combat))
+    printf(string.format("Cast enabled=%s scale=%.2f alpha=%.2f | Mirror enabled=%s scale=%.2f alpha=%.2f",
+      tostring(p.castBar.enabled), p.castBar.scale, p.castBar.alpha, tostring(p.mirrorBar.enabled), p.mirrorBar.scale, p.mirrorBar.alpha))
     return
-  elseif cmd == "test" then
-    if GnerdHUD_TestSet then GnerdHUD_TestSet(0.75, 0.50) end
-    local t0 = CreateFrame("Frame", nil, UIParent); local s = GetTime()
-    t0:SetScript("OnUpdate", function() if GetTime() - s > 6 then t0:SetScript("OnUpdate", nil); if GnerdHUD and GnerdHUD.LayoutUpdatePlayer then GnerdHUD.LayoutUpdatePlayer() end end end)
-    printf("Player test fill active for 6s."); return
-  elseif cmd == "ttest" then
-    if GnerdHUD_TestTargetSet then GnerdHUD_TestTargetSet(0.65, 0.40) end
-    local t1 = CreateFrame("Frame", nil, UIParent); local s = GetTime()
-    t1:SetScript("OnUpdate", function() if GetTime() - s > 6 then t1:SetScript("OnUpdate", nil); if GnerdHUD and GnerdHUD.LayoutUpdateTarget then GnerdHUD.LayoutUpdateTarget() end end end)
-    printf("Target test fill active for 6s."); return
-  elseif cmd == "show" then
-    if GnerdHUD_TestSet then GnerdHUD_TestSet(1.0, 1.0) end
-    local t2 = CreateFrame("Frame", nil, UIParent); local s = GetTime()
-    t2:SetScript("OnUpdate", function() if GetTime() - s > 5 then t2:SetScript("OnUpdate", nil); if GnerdHUD and GnerdHUD.LayoutUpdatePlayer then GnerdHUD.LayoutUpdatePlayer() end end end)
-    printf("Full fill for 5s."); return
-  elseif cmd == "dbg" then
-    if GnerdHUD_DebugToggle then GnerdHUD_DebugToggle() end; printf("Debug square toggled."); return
-  elseif cmd == "flash" then
-    local old = GnerdHUDDB.profile.locked; GnerdHUDDB.profile.locked = false; GnerdHUD.LayoutUpdateAlpha()
-    local t3 = CreateFrame("Frame", nil, UIParent); local s = GetTime()
-    t3:SetScript("OnUpdate", function() if GetTime() - s > 5 then t3:SetScript("OnUpdate", nil); GnerdHUDDB.profile.locked = old; GnerdHUD.LayoutUpdateAlpha() end end)
-    printf("Alpha forced to 1.0 for 5s."); return
   end
 
   printf("Unknown. Type /ghud help.")
@@ -213,24 +225,45 @@ ROOT:SetScript("OnEvent", function()
     ROOT:RegisterEvent("UNIT_ENERGY"); ROOT:RegisterEvent("UNIT_MAXENERGY")
     ROOT:RegisterEvent("UNIT_DISPLAYPOWER")
     ROOT:RegisterEvent("PLAYER_REGEN_DISABLED"); ROOT:RegisterEvent("PLAYER_REGEN_ENABLED"); ROOT:RegisterEvent("PLAYER_TARGET_CHANGED")
-    ROOT:Show(); return
+
+    ROOT:RegisterEvent("SPELLCAST_START")
+    ROOT:RegisterEvent("SPELLCAST_STOP")
+    ROOT:RegisterEvent("SPELLCAST_FAILED")
+    ROOT:RegisterEvent("SPELLCAST_INTERRUPTED")
+    ROOT:RegisterEvent("SPELLCAST_DELAYED")
+    ROOT:RegisterEvent("SPELLCAST_CHANNEL_START")
+    ROOT:RegisterEvent("SPELLCAST_CHANNEL_UPDATE")
+    ROOT:RegisterEvent("SPELLCAST_CHANNEL_STOP")
+
+    ROOT:RegisterEvent("MIRROR_TIMER_START")
+    ROOT:RegisterEvent("MIRROR_TIMER_STOP")
+    ROOT:RegisterEvent("MIRROR_TIMER_PAUSE")
+
+    ROOT:Show()
+    return
   end
 
   if e == "UNIT_HEALTH" or e == "UNIT_MAXHEALTH" then
-    if arg1 == "player" then GnerdHUD.LayoutUpdatePlayer(); GnerdHUD.LayoutUpdateAlpha() end
-    if arg1 == "target" then GnerdHUD.LayoutUpdateTarget(); GnerdHUD.LayoutUpdateAlpha() end
+    if arg1 == "player" then
+      GnerdHUD.LayoutUpdatePlayer()
+      -- ensure cast/mirror alpha switches between OOC full/hurt
+      if GnerdHUD.LayoutUpdateAlpha then GnerdHUD.LayoutUpdateAlpha() end
+    elseif arg1 == "target" then
+      GnerdHUD.LayoutUpdateTarget()
+    end
     return
   end
+
   if e == "UNIT_MANA" or e == "UNIT_MAXMANA" or e == "UNIT_RAGE" or e == "UNIT_MAXRAGE" or e == "UNIT_ENERGY" or e == "UNIT_MAXENERGY" then
-    if arg1 == "player" then GnerdHUD.LayoutUpdatePlayer() end
-    if arg1 == "target" then GnerdHUD.LayoutUpdateTarget() end
+    if arg1 == "player" then GnerdHUD.LayoutUpdatePlayer() elseif arg1 == "target" then GnerdHUD.LayoutUpdateTarget() end
     return
   end
-  if e == "UNIT_DISPLAYPOWER" then
-    if arg1 == "player" then GnerdHUD.LayoutUpdatePlayerColors(); GnerdHUD.LayoutUpdatePlayer() end
-    if arg1 == "target" then GnerdHUD.LayoutUpdateTargetColors(); GnerdHUD.LayoutUpdateTarget() end
+
+  if e == "UNIT_DISPLAYPOWER" and (arg1 == "player" or arg1 == "target") then
+    if arg1 == "player" then GnerdHUD.LayoutUpdatePlayerColors() else GnerdHUD.LayoutUpdateTargetColors() end
     return
   end
+
   if e == "PLAYER_REGEN_DISABLED" then GnerdHUD.env.state.inCombat = true;  GnerdHUD.LayoutUpdateAlpha(); return end
   if e == "PLAYER_REGEN_ENABLED"  then GnerdHUD.env.state.inCombat = false; GnerdHUD.LayoutUpdateAlpha(); return end
   if e == "PLAYER_TARGET_CHANGED" then
@@ -238,6 +271,8 @@ ROOT:SetScript("OnEvent", function()
     GnerdHUD.LayoutUpdateTargetColors(); GnerdHUD.LayoutUpdateTarget(); GnerdHUD.LayoutUpdateAlpha()
     return
   end
+
+  if GnerdHUD.Cast_OnEvent then GnerdHUD.Cast_OnEvent() end
 end)
 ROOT:RegisterEvent("PLAYER_LOGIN")
 
@@ -247,10 +282,27 @@ function GnerdHUD.ApplyAll(fromRebuild)
   GnerdHUD.LayoutSetPositions(p.left, p.right)
   GnerdHUD.LayoutSetLocked(p.locked)
   GnerdHUD.LayoutSetRightEnabled(p.rightEnabled)
+
   GnerdHUD.LayoutUpdatePlayerColors()
   GnerdHUD.LayoutUpdateTargetColors()
   GnerdHUD.LayoutUpdatePlayer()
   GnerdHUD.LayoutUpdateTarget()
+
+  GnerdHUD.Cast_Init()
+  GnerdHUD.Cast_SetLocked(p.locked)
+  GnerdHUD.Cast_SetPosition(p.center.x, p.center.y)
+  GnerdHUD.Cast_SetLocalScales(p.castBar.scale, p.mirrorBar.scale)
+  GnerdHUD.Cast_SetLocalAlphas(p.castBar.alpha, p.mirrorBar.alpha)
+  GnerdHUD.Cast_SetEnabled(p.castBar.enabled, p.mirrorBar.enabled)
   GnerdHUD.LayoutUpdateAlpha()
+
   if not fromRebuild then printf(Lf("STATE_APPLIED","Settings applied.")) end
+end
+
+do
+  local _orig = GnerdHUD.LayoutUpdateAlpha
+  function GnerdHUD.LayoutUpdateAlpha()
+    if _orig then _orig() end
+    if GnerdHUD.Cast_UpdateAlpha then GnerdHUD.Cast_UpdateAlpha() end
+  end
 end

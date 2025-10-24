@@ -1,8 +1,40 @@
 # Changelog
 
+## v0.5.5 (Center Cast & Mirror)
+Status: stable in smoke tests on TurtleWoW 1.12. This is the first “M1” drop on top of the 0.5.x Ice layout.
+
+New
+- Center Cast Bar (Vanilla SPELLCAST_* and CHANNEL_* events).
+- Center Mirror Bar (Breath/Fatigue/Feign/etc.). Reads Blizzard MirrorTimer statusbars every frame (authoritative), with safe fallbacks to frame fields and GetMirrorTimerInfo.
+- Options additions
+  - Separate enable/disable checkboxes for Cast and Mirror.
+  - Independent width scale sliders for each.
+  - Independent alpha stacks for each (OOC Full, OOC Hurt, Has Target, In Combat) + per-bar “alpha multiplier.”
+  - Options panel made scrollable; draggable; closes with ESC or [Close].
+- Movers
+  - Global Lock/Unlock now shows movers for Cast/Mirror as well as the arcs.
+  - While unlocked, inactive bars show a demo half-fill so they can be positioned.
+- Slash
+  - `/ghud options` opens reliably on first call after login or /reload.
+  - `/ghud diag` prints schema, positions, and both bar configs.
+
+Schema
+- Bumped to v11. New keys:
+  - `profile.center = { x, y }`
+  - `profile.castBar = { enabled, scale, alpha }`
+  - `profile.mirrorBar = { enabled, scale, alpha }`
+  - `profile.castAlpha = { ooc_full, ooc_hurt, target, combat }`
+  - `profile.mirrorAlpha = { ooc_full, ooc_hurt, target, combat }`
+- Migration is automatic from prior 0.5.x.
+
+Known Notes
+- Height sliders are deferred to polish (current scale is width-only).
+- Mirror prioritizes BREATH when multiple timers are active; other timers are still supported via the same reader.
+- Fade-after-complete for Cast/Mirror is intentionally short (~0.1s); we can expose as a slider later.
+
 ## v0.5.0 (Ice layout – Milestone 0)
-- New: Segmented arc renderer that replicates IceHUD-style curved bars in a 1.12-legal way (no texture masking/rotation). Default 64 segments per arc.
-- New: Player (left) and Target (right) arc HUDs.
+- Segmented arc renderer that replicates IceHUD-style curved bars in a 1.12-legal way (no texture masking/rotation). Default 64 segments per arc.
+- Player (left) and Target (right) arc HUDs.
   - Player Health uses a smooth green→yellow→red gradient by current %HP.
   - Player/Target Power colors map to Mana/Rage/Energy (and similar types) automatically.
   - Right (target) HUD can be shown/hidden via Options and updates immediately on toggle.

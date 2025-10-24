@@ -1,8 +1,5 @@
 -- Layout.lua
 -- UTF-8, UNIX newlines
--- Player (left) + Target (right)
--- Scale-invariant drag (movers stay at scale=1.0), movers VISUALLY resize with bar scale, arcs scale on inner roots.
--- Fix: remove calls to :IsMoving() (not in 1.12). Use a _dragging flag instead.
 
 local lay = {
   frames = {
@@ -14,19 +11,16 @@ local lay = {
   },
 }
 
-local MOVERSIZE = 360
+local MOVERSIZE = 280
 
-local function setCenterOffsets(frame, ox, oy)
-  frame:ClearAllPoints()
-  frame:SetPoint("CENTER", UIParent, "CENTER", ox, oy)
+local function healthGradientColor(frac)
+  if frac >= 0.5 then local t=(frac-0.5)*2; return (1-t), 1, 0 end
+  local t=frac*2; return 1, t, 0
 end
 
-local function calcParentCenterOffsets(f)
-  local fx, fy = f:GetCenter()
-  if not fx or not fy then return 0, 0 end
-  local px, py = UIParent:GetCenter()
-  px, py = px or 0, py or 0
-  return (fx - px), (fy - py)
+local function setCenterOffsets(f, x, y)
+  f:ClearAllPoints()
+  f:SetPoint("CENTER", UIParent, "CENTER", tonumber(x) or 0, tonumber(y) or 0)
 end
 
 local function makeMover(name, x, y, sideTag)
@@ -37,7 +31,6 @@ local function makeMover(name, x, y, sideTag)
   f._side = sideTag
   f._dragging = false
 
-  -- movers unscaled for stable drag; we resize them in LayoutSetScale
   f:SetScale(1.0)
   f:SetMovable(true); f:EnableMouse(true)
 
@@ -61,19 +54,17 @@ local function makeMover(name, x, y, sideTag)
   f:SetScript("OnDragStop", function()
     f:StopMovingOrSizing()
     f._dragging = false
-    local ox, oy = calcParentCenterOffsets(f)
-    setCenterOffsets(f, ox, oy)
-    local p = (GnerdHUDDB and GnerdHUDDB.profile)
-    if p then
-      if f._side == "left"  then p.left.x,  p.left.y  = ox, oy
-      elseif f._side == "right" then p.right.x, p.right.y = ox, oy end
+    local fx,fy = f:GetCenter(); local px,py = UIParent:GetCenter(); px,py=px or 0,py or 0
+    local ox,oy = (fx - px), (fy - py)
+    f:ClearAllPoints(); f:SetPoint("CENTER", UIParent, "CENTER", ox, oy)
+    if GnerdHUDDB and GnerdHUDDB.profile then
+      if f._side == "left" then GnerdHUDDB.profile.left.x,  GnerdHUDDB.profile.left.y  = ox, oy
+      else                       GnerdHUDDB.profile.right.x, GnerdHUDDB.profile.right.y = ox, oy
+      end
     end
   end)
   f:SetScript("OnHide", function()
-    if f._dragging then
-      f:StopMovingOrSizing()
-      f._dragging = false
-    end
+    if f._dragging then f:StopMovingOrSizing(); f._dragging=false end
   end)
 
   return f
@@ -111,6 +102,16 @@ function GnerdHUD.LayoutSetRightEnabled(flag)
   GnerdHUD.LayoutUpdateAlpha()
 end
 
+function GnerdHUD.LayoutSetPositions(left, right)
+  if not lay.frames.leftMover or not lay.frames.rightMover then return end
+  setCenterOffsets(lay.frames.leftMover,  tonumber(left and left.x or 0),  tonumber(left and left.y or 0))
+  setCenterOffsets(lay.frames.rightMover, tonumber(right and right.x or 0), tonumber(right and right.y or 0))
+  if GnerdHUDDB and GnerdHUDDB.profile and GnerdHUD.Cast_SetPosition then
+    local c = GnerdHUDDB.profile.center
+    GnerdHUD.Cast_SetPosition(tonumber(c and c.x or 0), tonumber(c and c.y or -32))
+  end
+end
+
 function GnerdHUD.LayoutCreate()
   local p  = (GnerdHUDDB and GnerdHUDDB.profile) or nil
   local left  = (p and p.left)  or { x = 0, y = 0 }
@@ -145,6 +146,9 @@ function GnerdHUD.LayoutCreate()
   GnerdHUD.LayoutUpdateTargetColors()
   GnerdHUD.LayoutUpdatePlayer()
   GnerdHUD.LayoutUpdateTarget()
+
+  if GnerdHUD.Cast_Init then GnerdHUD.Cast_Init() end
+  if GnerdHUD.Cast_SetPosition and p and p.center then GnerdHUD.Cast_SetPosition(p.center.x, p.center.y) end
 end
 
 function GnerdHUD.LayoutDestroy()
@@ -157,13 +161,16 @@ function GnerdHUD.LayoutDestroy()
   if f.leftMover    then f.leftMover:Hide();    f.leftMover:SetParent(nil);    f.leftMover    = nil end
   if f.rightMover   then f.rightMover:Hide();   f.rightMover:SetParent(nil);   f.rightMover   = nil end
   f.leftRoot, f.rightRoot = nil, nil
+  if GnerdHUD.Cast_Destroy then GnerdHUD.Cast_Destroy() end
 end
 
 function GnerdHUD.LayoutSetLocked(locked)
   local f = lay.frames
   if not f.leftMover or not f.rightMover then return end
+  local setMoverLocked = setMoverLocked
   setMoverLocked(f.leftMover, locked)
   setMoverLocked(f.rightMover, locked)
+  if GnerdHUD.Cast_SetLocked then GnerdHUD.Cast_SetLocked(locked) end
   GnerdHUD.LayoutUpdateAlpha()
 end
 
@@ -186,38 +193,25 @@ function GnerdHUD.LayoutSetScale(scale)
   if lay.frames.rightRoot then lay.frames.rightRoot:SetScale(scale) end
 end
 
-function GnerdHUD.LayoutSetPositions(left, right)
-  if lay.frames.leftMover  and type(left)  == "table" then setCenterOffsets(lay.frames.leftMover,  tonumber(left.x)  or 0, tonumber(left.y)  or 0) end
-  if lay.frames.rightMover and type(right) == "table" then setCenterOffsets(lay.frames.rightMover, tonumber(right.x) or 0, tonumber(right.y) or 0) end
-end
-
-local function healthGradientColor(frac)
-  local r, g, b = 1, 1, 0
-  if frac >= 0.5 then local t = (frac - 0.5) * 2; r = 1 - t; g = 1; b = 0
-  else local t = frac * 2; r = 1; g = t; b = 0 end
-  return r, g, b
+local function powerColor(unit)
+  local t = UnitPowerType and UnitPowerType(unit) or 0
+  if t == 1 then return 1.0, 0.10, 0.10 end
+  if t == 3 then return 1.0, 0.70, 0.10 end
+  if t == 4 then return 0.60, 0.00, 0.60 end
+  if t == 2 then return 1.00, 1.00, 0.10 end
+  return 0.25, 0.65, 1.00
 end
 
 function GnerdHUD.LayoutUpdatePlayerColors()
-  if lay.frames.playerPower then
-    local pt = 0
-    if type(UnitPowerType) == "function" then pt = UnitPowerType("player") or 0
-    elseif type(UnitManaType) == "function" then local t = UnitManaType("player"); if type(t) == "number" then pt = t end end
-    local r,g,b = 0.25,0.65,1.0
-    if pt == 1 then r,g,b = 1.0,0.1,0.1 elseif pt == 3 then r,g,b = 1.0,0.7,0.1 elseif pt == 2 then r,g,b = 1.0,1.0,0.1 end
-    lay.frames.playerPower:SetColor(r,g,b,1.0)
-  end
+  if not lay.frames.playerPower then return end
+  local r,g,b = powerColor("player")
+  lay.frames.playerPower:SetColor(r,g,b,1.0)
 end
 
 function GnerdHUD.LayoutUpdateTargetColors()
-  if lay.frames.targetPower then
-    local pt = 0
-    if type(UnitPowerType) == "function" then pt = UnitPowerType("target") or 0
-    elseif type(UnitManaType) == "function" then local t = UnitManaType("target"); if type(t) == "number" then pt = t end end
-    local r,g,b = 0.25,0.65,1.0
-    if pt == 1 then r,g,b = 1.0,0.1,0.1 elseif pt == 3 then r,g,b = 1.0,0.7,0.1 elseif pt == 2 then r,g,b = 1.0,1.0,0.1 end
-    lay.frames.targetPower:SetColor(r,g,b,1.0)
-  end
+  if not lay.frames.targetPower then return end
+  local r,g,b = powerColor("target")
+  lay.frames.targetPower:SetColor(r,g,b,1.0)
 end
 
 function GnerdHUD.LayoutUpdatePlayer()
@@ -266,4 +260,5 @@ function GnerdHUD.LayoutUpdateAlpha()
   local ra = (p and p.locked == false) and 1.0 or ((p and p.rightEnabled) and la or 0)
   if lay.frames.leftMover  then lay.frames.leftMover:SetAlpha(la) end
   if lay.frames.rightMover then lay.frames.rightMover:SetAlpha(ra) end
+  if GnerdHUD.Cast_SetBaseAlpha then GnerdHUD.Cast_SetBaseAlpha(la) end
 end
