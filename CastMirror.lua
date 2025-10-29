@@ -1,22 +1,22 @@
 -- CastMirror.lua
 -- UTF-8, UNIX newlines
 -- Center group for Cast + Mirror bars.
--- Mirror timers: aggressively read Blizzard MirrorTimer statusbars (preferred),
--- then raw frames, then GetMirrorTimerInfo indices. Shows/drains/refills while underwater.
+-- Mirror timers read Blizzard MirrorTimer statusbars each frame (authoritative), with safe fallbacks.
 
 local cm = {
   root = nil, mover = nil,
   locked = true,
   pos = { x = 0, y = -32 },
 
-  cast =   { frame=nil, active=false, channel=false, start=0, finish=0, name="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true },
-  mirror = { frame=nil, active=false, current="", paused=false, label="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true },
+  cast =   { frame=nil, active=false, channel=false, start=0, finish=0, name="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true, height=12 },
+  mirror = { frame=nil, active=false, current="", paused=false, label="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true, height=12 },
 }
 
 local BASE_W, BASE_H, GAP = 260, 12, 6
 
 local function clamp01(x) x=tonumber(x) or 0; if x<0 then return 0 elseif x>1 then return 1 else return x end end
 local function clampScale(x) x=tonumber(x) or 1.0; if x<0.5 then return 0.5 elseif x>1.5 then return 1.5 else return x end end
+local function clampHeight(x) x=tonumber(x) or BASE_H; if x<6 then return 6 elseif x>24 then return 24 else return x end end
 
 local function setCenterOffsets(f, x, y)
   f:ClearAllPoints()
@@ -36,7 +36,7 @@ local function ensureRoot()
   if cm.root then return end
 
   local mover = CreateFrame("Frame", "GnerdHUD_CenterMover", UIParent)
-  mover:SetWidth(BASE_W); mover:SetHeight(BASE_H*2 + GAP + 10)
+  mover:SetWidth(BASE_W); mover:SetHeight((cm.cast.height or BASE_H) + (cm.mirror.height or BASE_H) + GAP + 10)
   setCenterOffsets(mover, cm.pos.x, cm.pos.y)
   mover:SetFrameStrata("HIGH"); mover:SetScale(1.0)
   mover:SetMovable(true); mover:EnableMouse(true)
@@ -67,21 +67,26 @@ local function ensureRoot()
   cm.mover = mover
   cm.root = root
 
-  local function makeBar(name, anchor, yOfs)
+  local function makeBar(name, anchor, yOfs, height)
+    local h = clampHeight(height or BASE_H)
     local bar = CreateFrame("Frame", name, root)
     bar:SetPoint("TOP", anchor or root, "TOP", 0, yOfs or 0)
-    bar:SetWidth(BASE_W); bar:SetHeight(BASE_H)
+    bar:SetWidth(BASE_W); bar:SetHeight(h)
     bar.bg   = bar:CreateTexture(nil, "BACKGROUND"); bar.bg:SetAllPoints(bar); bar.bg:SetTexture(0, 0, 0, 0.70)
-    bar.fill = bar:CreateTexture(nil, "ARTWORK");    bar.fill:SetHeight(BASE_H); bar.fill:SetTexture(0.2, 0.65, 1.0, 1.0)
+    bar.fill = bar:CreateTexture(nil, "ARTWORK");    bar.fill:SetHeight(h); bar.fill:SetTexture(0.2, 0.65, 1.0, 1.0)
     bar.fill:ClearAllPoints(); bar.fill:SetPoint("LEFT", bar, "LEFT", 0, 0); bar.fill:SetWidth(1)
     bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     bar.text:SetPoint("CENTER", bar, "CENTER", 0, 0); bar.text:SetText("")
+    bar._height = h
     bar:Hide()
     return bar
   end
 
-  cm.cast.frame   = makeBar("GnerdHUD_CastBar", nil, 0)
-  cm.mirror.frame = makeBar("GnerdHUD_MirrorBar", cm.cast.frame, -(BASE_H + GAP))
+  cm.cast.height   = clampHeight(GnerdHUDDB and GnerdHUDDB.profile and GnerdHUDDB.profile.castBar and GnerdHUDDB.profile.castBar.height or cm.cast.height or BASE_H)
+  cm.mirror.height = clampHeight(GnerdHUDDB and GnerdHUDDB.profile and GnerdHUDDB.profile.mirrorBar and GnerdHUDDB.profile.mirrorBar.height or cm.mirror.height or BASE_H)
+
+  cm.cast.frame   = makeBar("GnerdHUD_CastBar", nil, 0, cm.cast.height)
+  cm.mirror.frame = makeBar("GnerdHUD_MirrorBar", cm.cast.frame, -(cm.cast.height + GAP), cm.mirror.height)
 
   cm.cast.frame.fill:SetTexture(1.0, 0.7, 0.1, 1.0)
   cm.mirror.frame.fill:SetTexture(0.2, 0.8, 1.0, 1.0)
@@ -89,12 +94,23 @@ local function ensureRoot()
   setMoverLocked(mover, cm.locked)
 end
 
-local function applyLocalScales()
+local function applyLocalSizes()
   if not cm.root then return end
-  local cw, mw = BASE_W * cm.cast.scale, BASE_W * cm.mirror.scale
-  cm.cast.frame:SetWidth(cw);    cm.cast.frame.fill:SetHeight(BASE_H)
-  cm.mirror.frame:SetWidth(mw);  cm.mirror.frame.fill:SetHeight(BASE_H)
+  local cw = BASE_W * cm.cast.scale
+  local mw = BASE_W * cm.mirror.scale
+  local ch = clampHeight(cm.cast.height)
+  local mh = clampHeight(cm.mirror.height)
+
+  cm.cast.frame:SetWidth(cw);     cm.cast.frame:SetHeight(ch);     cm.cast.frame.fill:SetHeight(ch); cm.cast.frame._height = ch
+  cm.mirror.frame:SetWidth(mw);   cm.mirror.frame:SetHeight(mh);   cm.mirror.frame.fill:SetHeight(mh); cm.mirror.frame._height = mh
+
+  -- reposition mirror below cast using their real heights
+  cm.mirror.frame:ClearAllPoints()
+  cm.mirror.frame:SetPoint("TOP", cm.cast.frame, "BOTTOM", 0, -GAP)
+
+  -- adjust mover bounds
   cm.mover:SetWidth(math.max(cw, mw))
+  cm.mover:SetHeight(ch + mh + GAP + 10)
 end
 
 local function setBarFrac(bar, frac, scale)
@@ -109,7 +125,7 @@ local function ensureMirrorFramesLoaded()
   if UIParentLoadAddOn then pcall(UIParentLoadAddOn, "Blizzard_Mirror") end
 end
 
--- Read via StatusBar (strongest, works with pfUI skinning)
+-- Prefer statusbars (works with pfUI)
 local function readFromStatusBars()
   ensureMirrorFramesLoaded()
   local best
@@ -131,7 +147,7 @@ local function readFromStatusBars()
   return best
 end
 
--- Read raw frame fields
+-- Fallback: raw frames
 local function readFromFrames()
   ensureMirrorFramesLoaded()
   local best
@@ -152,7 +168,7 @@ local function readFromFrames()
   return best
 end
 
--- Read API indices
+-- Fallback: API
 local function readFromAPI()
   if not GetMirrorTimerInfo then return nil end
   local best
@@ -226,7 +242,6 @@ local function updateMirror()
     return
   end
 
-  -- Try, in order: StatusBars -> raw frames -> API
   local info = readFromStatusBars() or readFromFrames() or readFromAPI()
 
   if info then
@@ -240,7 +255,6 @@ local function updateMirror()
     return
   end
 
-  -- No active timer
   if cm.mirror.fadeOutUntil > 0 and GetTime() < cm.mirror.fadeOutUntil then
     setBarFrac(cm.mirror.frame, 1.0, cm.mirror.scale)
     cm.mirror.frame:Show()
@@ -274,7 +288,11 @@ end)
 
 function GnerdHUD.Cast_Init()
   ensureRoot()
-  applyLocalScales()
+  -- seed heights from DB when present
+  local p = GnerdHUDDB and GnerdHUDDB.profile or nil
+  if p and p.castBar then cm.cast.height = clampHeight(p.castBar.height or cm.cast.height or BASE_H) end
+  if p and p.mirrorBar then cm.mirror.height = clampHeight(p.mirrorBar.height or cm.mirror.height or BASE_H) end
+  applyLocalSizes()
   cm.cast.active = false; cm.cast.fadeOutUntil = 0
   cm.mirror.active = false; cm.mirror.fadeOutUntil = 0
   if cm.cast.frame then cm.cast.frame:Hide() end
@@ -286,8 +304,8 @@ function GnerdHUD.Cast_Destroy()
   if cm.root then cm.root:Hide(); cm.root:SetParent(nil) end
   if cm.mover then cm.mover:Hide(); cm.mover:SetParent(nil) end
   cm.root, cm.mover = nil, nil
-  cm.cast = { frame=nil, active=false, channel=false, start=0, finish=0, name="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true }
-  cm.mirror = { frame=nil, active=false, current="", paused=false, label="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true }
+  cm.cast = { frame=nil, active=false, channel=false, start=0, finish=0, name="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true, height=12 }
+  cm.mirror = { frame=nil, active=false, current="", paused=false, label="", fadeOutUntil=0, scale=1.0, alpha=1.0, enabled=true, height=12 }
 end
 
 function GnerdHUD.Cast_UpdateAlpha()
@@ -326,7 +344,14 @@ function GnerdHUD.Cast_SetLocalScales(castScale, mirrorScale)
   cm.cast.scale   = clampScale(castScale)
   cm.mirror.scale = clampScale(mirrorScale)
   ensureRoot()
-  applyLocalScales()
+  applyLocalSizes()
+end
+
+function GnerdHUD.Cast_SetLocalHeights(castHeight, mirrorHeight)
+  cm.cast.height   = clampHeight(castHeight)
+  cm.mirror.height = clampHeight(mirrorHeight)
+  ensureRoot()
+  applyLocalSizes()
 end
 
 function GnerdHUD.Cast_SetLocalAlphas(castAlpha, mirrorAlpha)

@@ -1,16 +1,17 @@
 # Changelog
 
-## v0.5.5 (Center Cast & Mirror)
-Status: stable in smoke tests on TurtleWoW 1.12. This is the first “M1” drop on top of the 0.5.x Ice layout.
+## v0.5.5 (Center Cast & Mirror) — M1e refresh
+Status: stable in smoke tests on TurtleWoW 1.12.
 
 New
 - Center Cast Bar (Vanilla SPELLCAST_* and CHANNEL_* events).
 - Center Mirror Bar (Breath/Fatigue/Feign/etc.). Reads Blizzard MirrorTimer statusbars every frame (authoritative), with safe fallbacks to frame fields and GetMirrorTimerInfo.
-- Options additions
+- Options additions (now tabbed: **Global** | **Center Bars**)
   - Separate enable/disable checkboxes for Cast and Mirror.
   - Independent width scale sliders for each.
+  - **Independent height sliders (px) for each.**
   - Independent alpha stacks for each (OOC Full, OOC Hurt, Has Target, In Combat) + per-bar “alpha multiplier.”
-  - Options panel made scrollable; draggable; closes with ESC or [Close].
+  - Panel is draggable, closes with ESC or [Close], and each tab has its own scroll area with hover-hints.
 - Movers
   - Global Lock/Unlock now shows movers for Cast/Mirror as well as the arcs.
   - While unlocked, inactive bars show a demo half-fill so they can be positioned.
@@ -21,15 +22,14 @@ New
 Schema
 - Bumped to v11. New keys:
   - `profile.center = { x, y }`
-  - `profile.castBar = { enabled, scale, alpha }`
-  - `profile.mirrorBar = { enabled, scale, alpha }`
+  - `profile.castBar = { enabled, scale, height, alpha }`
+  - `profile.mirrorBar = { enabled, scale, height, alpha }`
   - `profile.castAlpha = { ooc_full, ooc_hurt, target, combat }`
   - `profile.mirrorAlpha = { ooc_full, ooc_hurt, target, combat }`
 - Migration is automatic from prior 0.5.x.
 
-Known Notes
-- Height sliders are deferred to polish (current scale is width-only).
-- Mirror prioritizes BREATH when multiple timers are active; other timers are still supported via the same reader.
+Behavior notes
+- Mirror prioritizes BREATH when multiple timers are active; other timers are supported via the same reader.
 - Fade-after-complete for Cast/Mirror is intentionally short (~0.1s); we can expose as a slider later.
 
 ## v0.5.0 (Ice layout – Milestone 0)
